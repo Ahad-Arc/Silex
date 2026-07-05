@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120" fill="none" role="img" aria-label="SILEX">
+  <defs>
+    <linearGradient id="icon-grad" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#8B5CF6"/>
+      <stop offset="45%"  stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#00D2A0"/>
+    </linearGradient>
+    <linearGradient id="icon-cross" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <!-- Text gradient: white → teal on the X -->
+    <linearGradient id="text-grad" x1="160" y1="0" x2="460" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFFFFF"/>
+      <stop offset="72%"  stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#00D2A0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ═══ ICON MARK (left, scaled to 120×120 viewport) ═══ -->
+  <!-- Hex: center 60,60  outer r=53 -->
+  <path
+    d="M60 7 L106 34 L106 86 L60 113 L14 86 L14 34 Z"
+    stroke="url(#icon-grad)" stroke-width="3.5" stroke-linejoin="round" fill="none"
+  />
+
+  <!-- Band dividers -->
+  <line x1="14"  y1="47"  x2="106" y2="47"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="14"  y1="73"  x2="106" y2="73"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+
+  <!-- S top-right post -->
+  <line x1="91"  y1="7"   x2="91"  y2="47"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="91"  y1="7"   x2="106" y2="17"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- S bottom-left post -->
+  <line x1="29"  y1="73"  x2="29"  y2="113" stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="14"  y1="103" x2="29"  y2="113" stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round" opacity="0.8"/>
+
+  <!-- S cross diagonal -->
+  <line x1="14"  y1="47"  x2="106" y2="73"  stroke="url(#icon-cross)" stroke-width="3" stroke-linecap="round"/>
+
+  <!-- Top-left bar -->
+  <line x1="29"  y1="34"  x2="29"  y2="47"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="14"  y1="34"  x2="29"  y2="34"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+
+  <!-- Bottom-right bar -->
+  <line x1="91"  y1="73"  x2="91"  y2="86"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+  <line x1="91"  y1="86"  x2="106" y2="86"  stroke="url(#icon-grad)" stroke-width="2.8" stroke-linecap="round"/>
+
+  <!-- Depth lattice lines -->
+  <line x1="60"  y1="7"   x2="60"  y2="34"  stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <line x1="60"  y1="86"  x2="60"  y2="113" stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+  <line x1="29"  y1="20"  x2="91"  y2="20"  stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <line x1="29"  y1="100" x2="91"  y2="100" stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <line x1="14"  y1="34"  x2="29"  y2="20"  stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <line x1="106" y1="34"  x2="91"  y2="20"  stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <line x1="14"  y1="86"  x2="29"  y2="100" stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+  <line x1="106" y1="86"  x2="91"  y2="100" stroke="url(#icon-grad)" stroke-width="2" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- ═══ WORDMARK ═══ -->
+  <!-- Using geometric paths for crisp, font-independent rendering -->
+  <!-- S — I — L — E — X  starting at x=140, baseline y=84, cap-height ~56px -->
+
+  <!-- S (140–178) -->
+  <path d="M178 28 L144 28 Q140 28 140 32 L140 52 Q140 56 144 56 L174 56 Q178 56 178 60 L178 84 Q178 88 174 88 L140 88"
+    stroke="url(#text-grad)" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- I (192–200) -->
+  <line x1="196" y1="28" x2="196" y2="88" stroke="url(#text-grad)" stroke-width="7.5" stroke-linecap="round"/>
+
+  <!-- L (212–250) -->
+  <polyline points="212,28 212,88 250,88"
+    stroke="url(#text-grad)" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- E (262–302) -->
+  <polyline points="302,28 262,28 262,88 302,88"
+    stroke="url(#text-grad)" stroke-width="7.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <line x1="262" y1="58" x2="295" y2="58" stroke="url(#text-grad)" stroke-width="7.5" stroke-linecap="round"/>
+
+  <!-- X (314–360) — teal accent on the X per the brand -->
+  <line x1="314" y1="28" x2="360" y2="88" stroke="#00D2A0" stroke-width="7.5" stroke-linecap="round"/>
+  <line x1="360" y1="28" x2="314" y2="88" stroke="#00D2A0" stroke-width="7.5" stroke-linecap="round"/>
+</svg>

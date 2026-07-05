@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="SILEX favicon">
+  <!--
+    Favicon variant — optimised for 16×16 through 64×64.
+    Simplified to flat-colour hexagon background + bold S mark.
+    No thin lattice lines at small sizes — they would blur.
+    Uses a solid dark background with gradient stroke so it reads on any tab.
+  -->
+  <defs>
+    <linearGradient id="fv" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#8B5CF6"/>
+      <stop offset="50%"  stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#00D2A0"/>
+    </linearGradient>
+    <linearGradient id="fv2" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <!-- Dark background fill for the hex -->
+    <linearGradient id="fv-bg" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#1a103a"/>
+      <stop offset="100%" stop-color="#0a2028"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background hex (filled) for contrast on light tabs -->
+  <path
+    d="M16 1.5 L29 8.5 L29 23.5 L16 30.5 L3 23.5 L3 8.5 Z"
+    fill="url(#fv-bg)"
+  />
+
+  <!-- Outer hex border -->
+  <path
+    d="M16 1.5 L29 8.5 L29 23.5 L16 30.5 L3 23.5 L3 8.5 Z"
+    stroke="url(#fv)"
+    stroke-width="1.8"
+    stroke-linejoin="round"
+    fill="none"
+  />
+
+  <!-- Simplified S mark: three horizontal bars + diagonal -->
+  <!-- Top bar (right side) -->
+  <path d="M16 7 L26 7 L26 13 L16 13"
+    stroke="url(#fv)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- Diagonal: top-left of mid to bottom-right of mid -->
+  <line x1="6"  y1="13" x2="26" y2="19"
+    stroke="url(#fv2)" stroke-width="2" stroke-linecap="round"/>
+
+  <!-- Bottom bar (left side) -->
+  <path d="M16 19 L6 19 L6 25 L16 25"
+    stroke="url(#fv)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+</svg>

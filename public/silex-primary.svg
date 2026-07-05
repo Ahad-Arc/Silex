@@ -1,0 +1,83 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 240 320" fill="none" role="img" aria-label="SILEX">
+  <defs>
+    <linearGradient id="p-icon" x1="0" y1="0" x2="240" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#8B5CF6"/>
+      <stop offset="45%"  stop-color="#6366F1"/>
+      <stop offset="100%" stop-color="#00D2A0"/>
+    </linearGradient>
+    <linearGradient id="p-cross" x1="0" y1="0" x2="240" y2="200" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#7C3AED"/>
+      <stop offset="100%" stop-color="#06B6D4"/>
+    </linearGradient>
+    <!-- Wordmark: white with teal X -->
+    <linearGradient id="p-text" x1="20" y1="0" x2="220" y2="0" gradientUnits="userSpaceOnUse">
+      <stop offset="0%"   stop-color="#FFFFFF"/>
+      <stop offset="74%"  stop-color="#FFFFFF"/>
+      <stop offset="100%" stop-color="#00D2A0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- ═══ ICON MARK centered 120×180 zone ═══ -->
+  <!-- Hex: center 120,90  radius 82 -->
+  <path
+    d="M120 8 L202 55 L202 149 L120 196 L38 149 L38 55 Z"
+    stroke="url(#p-icon)" stroke-width="5" stroke-linejoin="round" fill="none"
+  />
+
+  <!-- Band dividers -->
+  <line x1="38"  y1="80"  x2="202" y2="80"  stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="38"  y1="124" x2="202" y2="124" stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- S top-right post + join -->
+  <line x1="170" y1="8"   x2="170" y2="80"  stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="170" y1="8"   x2="202" y2="28"  stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- S bottom-left post + join -->
+  <line x1="70"  y1="124" x2="70"  y2="196" stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="38"  y1="176" x2="70"  y2="196" stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round" opacity="0.75"/>
+
+  <!-- S diagonal cross -->
+  <line x1="38"  y1="80"  x2="202" y2="124" stroke="url(#p-cross)" stroke-width="4"   stroke-linecap="round"/>
+
+  <!-- Top-left corner bar -->
+  <line x1="70"  y1="55"  x2="70"  y2="80"  stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="38"  y1="55"  x2="70"  y2="55"  stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Bottom-right corner bar -->
+  <line x1="170" y1="124" x2="170" y2="149" stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+  <line x1="170" y1="149" x2="202" y2="149" stroke="url(#p-icon)"  stroke-width="3.5" stroke-linecap="round"/>
+
+  <!-- Depth / lattice -->
+  <line x1="120" y1="8"   x2="120" y2="55"  stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="120" y1="149" x2="120" y2="196" stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.4"/>
+  <line x1="70"  y1="32"  x2="170" y2="32"  stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+  <line x1="70"  y1="172" x2="170" y2="172" stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+  <line x1="38"  y1="55"  x2="70"  y2="32"  stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+  <line x1="202" y1="55"  x2="170" y2="32"  stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+  <line x1="38"  y1="149" x2="70"  y2="172" stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+  <line x1="202" y1="149" x2="170" y2="172" stroke="url(#p-icon)" stroke-width="2.5" stroke-linecap="round" opacity="0.35"/>
+
+  <!-- ═══ WORDMARK stacked below icon ═══ -->
+  <!-- Baseline y=290, cap height 60px, total 5 glyphs centred in 240px -->
+  <!-- Total glyph width approx: S=42 I=10 L=38 E=42 X=42  gaps=10×4=40 → total=214, offset=13 -->
+
+  <!-- S (13–55) -->
+  <path d="M55 232 L19 232 Q13 232 13 238 L13 258 Q13 264 19 264 L51 264 Q57 264 57 270 L57 286 Q57 292 51 292 L13 292"
+    stroke="url(#p-text)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- I (67–77) -->
+  <line x1="72" y1="232" x2="72" y2="292" stroke="url(#p-text)" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- L (87–127) -->
+  <polyline points="87,232 87,292 127,292"
+    stroke="url(#p-text)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+
+  <!-- E (137–179) -->
+  <polyline points="179,232 137,232 137,292 179,292"
+    stroke="url(#p-text)" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+  <line x1="137" y1="262" x2="173" y2="262" stroke="url(#p-text)" stroke-width="7" stroke-linecap="round"/>
+
+  <!-- X (189–227) — teal accent -->
+  <line x1="189" y1="232" x2="227" y2="292" stroke="#00D2A0" stroke-width="7" stroke-linecap="round"/>
+  <line x1="227" y1="232" x2="189" y2="292" stroke="#00D2A0" stroke-width="7" stroke-linecap="round"/>
+</svg>
