@@ -11,6 +11,7 @@ import {
 } from "../../lib/useClients";
 import { motion } from "framer-motion";
 import { useMotionPresets } from "../../lib/motionPresets";
+import { EmptyState } from "../EmptyState";
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ClientsPageProps {
@@ -42,13 +43,16 @@ interface ClientRow extends Client {
 const Field: React.FC<{
   label: string; value: string; onChange: (v: string) => void;
   type?: string; placeholder?: string; half?: boolean;
-}> = ({ label, value, onChange, type = "text", placeholder }) => (
-  <div className="space-y-1.5">
-    <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">{label}</label>
-    <input type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
-      className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground placeholder-muted-custom/50 focus:border-accent focus:outline-none transition-colors" />
-  </div>
-);
+}> = ({ label, value, onChange, type = "text", placeholder }) => {
+  const id = React.useId();
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">{label}</label>
+      <input id={id} type={type} value={value} placeholder={placeholder} onChange={(e) => onChange(e.target.value)}
+        className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground placeholder-muted-custom/50 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-all" />
+    </div>
+  );
+};
 
 const StatusBadge: React.FC<{ status: string }> = ({ status }) => (
   <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold border ${
@@ -637,69 +641,81 @@ export const ClientsPage: React.FC<ClientsPageProps> = ({
       </div>
 
       {/* Main two-column layout */}
-      <main className="flex-1 flex min-h-0">
-        {/* Client list */}
-        <div className={`flex flex-col gap-2 p-4 overflow-y-auto transition-all duration-300 ${selectedRow ? "w-[340px] shrink-0" : "flex-1"}`}>
-          {filtered.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3 py-24">
-              <span className="text-muted-custom/30"><ClientsIcon size={40} /></span>
-              <p className="text-sm font-semibold text-muted-custom">No clients found</p>
-              <button onClick={() => setShowModal(true)} className="text-2xs font-semibold text-accent hover:underline">Add your first client →</button>
-            </div>
-          ) : (
-            filtered.map((client) => {
-              const hs = HEALTH_STYLES[client.health];
-              const isSelected = selectedId === client.id;
-              return (
-                <button key={client.id} onClick={() => setSelectedId(isSelected ? null : client.id)}
-                  className={`w-full text-left rounded-xl border p-3.5 transition-all duration-150 ${isSelected ? "border-accent/60 bg-accent/5 ring-1 ring-accent/20" : "border-border-custom bg-surface hover:bg-background/40"}`}>
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-background border border-border-custom text-xs font-bold text-accent flex items-center justify-center shrink-0">
-                      {client.displayName.substring(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between gap-2">
-                        <p className="text-xs font-semibold text-foreground truncate">{client.displayName}</p>
-                        <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold border ${hs.cls}`}>{hs.label}</span>
-                      </div>
-                      <p className="text-2xs text-muted-custom truncate mt-0.5">{client.email}</p>
-                      <div className="flex items-center gap-3 mt-1.5">
-                        <span className="text-2xs text-muted-custom"><span className="font-semibold text-foreground">{client.invoiceCount}</span> inv</span>
-                        <span className="h-1 w-1 rounded-full bg-border-custom" />
-                        <span className="text-2xs text-muted-custom"><span className="font-semibold text-foreground">{formatCurrency(client.totalBilled, client.currency || defaultCurrency)}</span></span>
-                        {client.outstanding > 0 && (
-                          <>
+      <main className="flex-1 flex flex-col min-h-0">
+        {clients.length === 0 ? (
+          <EmptyState
+            title="Add your first client"
+            description="Manage client details, billing profiles, and trace unpaid balances all in one premium screen."
+            buttonLabel="Add Client"
+            onAction={() => setShowModal(true)}
+            icon={<ClientsIcon size={24} />}
+          />
+        ) : (
+          <div className="flex-1 flex min-h-0 w-full">
+            {/* Client list */}
+            <div className={`flex flex-col gap-2 p-4 overflow-y-auto transition-all duration-300 ${selectedRow ? "w-[340px] shrink-0" : "flex-1"}`}>
+              {filtered.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center gap-3 py-24 animate-in fade-in duration-300">
+                  <span className="text-muted-custom/30"><ClientsIcon size={40} /></span>
+                  <p className="text-sm font-semibold text-muted-custom">No clients found</p>
+                  <button onClick={() => setShowModal(true)} className="text-2xs font-semibold text-accent hover:underline">Add your first client →</button>
+                </div>
+              ) : (
+                filtered.map((client) => {
+                  const hs = HEALTH_STYLES[client.health];
+                  const isSelected = selectedId === client.id;
+                  return (
+                    <button key={client.id} onClick={() => setSelectedId(isSelected ? null : client.id)}
+                      className={`w-full text-left rounded-xl border p-3.5 transition-all duration-150 ${isSelected ? "border-accent/60 bg-accent/5 ring-1 ring-accent/20" : "border-border-custom bg-surface hover:bg-background/40"}`}>
+                      <div className="flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-xl bg-background border border-border-custom text-xs font-bold text-accent flex items-center justify-center shrink-0">
+                          {client.displayName.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="text-xs font-semibold text-foreground truncate">{client.displayName}</p>
+                            <span className={`shrink-0 inline-flex items-center rounded-full px-2 py-0.5 text-2xs font-semibold border ${hs.cls}`}>{hs.label}</span>
+                          </div>
+                          <p className="text-2xs text-muted-custom truncate mt-0.5">{client.email}</p>
+                          <div className="flex items-center gap-3 mt-1.5">
+                            <span className="text-2xs text-muted-custom"><span className="font-semibold text-foreground">{client.invoiceCount}</span> inv</span>
                             <span className="h-1 w-1 rounded-full bg-border-custom" />
-                            <span className="text-2xs text-amber-400 font-semibold">{formatCurrency(client.outstanding, client.currency || defaultCurrency)} due</span>
-                          </>
-                        )}
+                            <span className="text-2xs text-muted-custom"><span className="font-semibold text-foreground">{formatCurrency(client.totalBilled, client.currency || defaultCurrency)}</span></span>
+                            {client.outstanding > 0 && (
+                              <>
+                                <span className="h-1 w-1 rounded-full bg-border-custom" />
+                                <span className="text-2xs text-amber-400 font-semibold">{formatCurrency(client.outstanding, client.currency || defaultCurrency)} due</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                </button>
-              );
-            })
-          )}
-        </div>
+                    </button>
+                  );
+                })
+              )}
+            </div>
 
-        {/* Profile panel */}
-        {selectedRow && (
-          <div className="flex-1 p-4 overflow-hidden flex">
-            <ClientProfile
-              client={selectedRow}
-              clientInvoices={selectedInvs}
-              onClose={() => setSelectedId(null)}
-              onEdit={() => {
-                if (!selectedRow.id.startsWith("orphan__")) {
-                  const full = clients.find((c) => c.id === selectedRow.id);
-                  if (full) { setEditingClient(full); setShowModal(true); }
-                }
-              }}
-              onDelete={handleDeleteSelected}
-              onNewInvoice={() => onNewInvoice(selectedRow.id.startsWith("orphan__") ? undefined : selectedRow.id)}
-              onEditInvoice={onEditInvoice}
-              onUpdateStatus={handleUpdateStatus}
-            />
+            {/* Profile panel */}
+            {selectedRow && (
+              <div className="flex-1 p-4 overflow-hidden flex">
+                <ClientProfile
+                  client={selectedRow}
+                  clientInvoices={selectedInvs}
+                  onClose={() => setSelectedId(null)}
+                  onEdit={() => {
+                    if (!selectedRow.id.startsWith("orphan__")) {
+                      const full = clients.find((c) => c.id === selectedRow.id);
+                      if (full) { setEditingClient(full); setShowModal(true); }
+                    }
+                  }}
+                  onDelete={handleDeleteSelected}
+                  onNewInvoice={() => onNewInvoice(selectedRow.id.startsWith("orphan__") ? undefined : selectedRow.id)}
+                  onEditInvoice={onEditInvoice}
+                  onUpdateStatus={handleUpdateStatus}
+                />
+              </div>
+            )}
           </div>
         )}
       </main>

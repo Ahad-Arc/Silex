@@ -14,6 +14,7 @@ import { Invoice } from "../InvoiceDrawer";
 import { formatCurrency } from "../../lib/currencies";
 import { motion } from "framer-motion";
 import { useMotionPresets } from "../../lib/motionPresets";
+import { EmptyState } from "../EmptyState";
 
 interface InvoicesPageProps {
   invoices: Invoice[];
@@ -136,197 +137,219 @@ export const InvoicesPage: React.FC<InvoicesPageProps> = ({
         </div>
       </header>
 
-      <main className="p-6 space-y-6 flex-1">
-        {/* Summary stat strip */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          {[
-            { label: "All Invoices", value: counts.all, color: "text-foreground", bg: "bg-surface" },
-            { label: "Paid", value: counts.paid, color: "text-success-custom", bg: "bg-success-custom/5" },
-            { label: "Pending", value: counts.pending, color: "text-accent", bg: "bg-accent/5" },
-            { label: "Overdue", value: counts.overdue, color: "text-red-400", bg: "bg-red-500/5" },
-          ].map((s) => (
-            <button
-              key={s.label}
-              onClick={() => setFilter(s.label === "All Invoices" ? "All" : s.label as FilterType)}
-              className={`rounded-xl border border-border-custom ${s.bg} px-4 py-3 text-left transition-all hover:border-accent/40 ${
-                filter === (s.label === "All Invoices" ? "All" : s.label) ? "border-accent/60 ring-1 ring-accent/20" : ""
-              }`}
-            >
-              <p className={`text-xl font-bold ${s.color}`}>{s.value}</p>
-              <p className="text-2xs text-muted-custom mt-0.5 font-medium">{s.label}</p>
-            </button>
-          ))}
-        </div>
-
-        {/* Table */}
-        <section className="rounded-xl border border-border-custom bg-surface overflow-hidden">
-          {/* Filter bar */}
-          <div className="border-b border-border-custom px-6 py-3 flex flex-wrap items-center gap-2">
-            {(["All", "Paid", "Pending", "Overdue"] as const).map((f) => (
-              <button
-                key={f}
-                onClick={() => setFilter(f)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
-                  filter === f
-                    ? "bg-background text-foreground border border-border-custom"
-                    : "text-muted-custom hover:text-foreground border border-transparent"
-                }`}
-              >
-                {f}
-                <span className="ml-1.5 text-2xs opacity-60">
-                  {f === "All" ? counts.all : f === "Paid" ? counts.paid : f === "Pending" ? counts.pending : counts.overdue}
-                </span>
-              </button>
-            ))}
-          </div>
-
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs border-collapse">
-              <thead className="bg-background/50 border-b border-border-custom text-muted-custom">
-                <tr>
-                  <th
-                    className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("id")}
-                  >
-                    Invoice ID <SortIndicator field="id" />
-                  </th>
-                  <th
-                    className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("clientName")}
-                  >
-                    Client <SortIndicator field="clientName" />
-                  </th>
-                  <th className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs">
-                    Issued
-                  </th>
-                  <th className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs">
-                    Due
-                  </th>
-                  <th
-                    className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs text-right cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("amount")}
-                  >
-                    Amount <SortIndicator field="amount" />
-                  </th>
-                  <th
-                    className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs text-center cursor-pointer hover:text-foreground select-none"
-                    onClick={() => handleSort("status")}
-                  >
-                    Status <SortIndicator field="status" />
-                  </th>
-                  <th className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs text-right">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-border-custom">
-                {filtered.length > 0 ? (
-                  filtered.map((inv) => (
-                    <tr
-                      key={inv.id}
-                      onClick={() => onSelectInvoice?.(inv)}
-                      className="group hover:bg-background/40 cursor-pointer transition-colors duration-150"
-                    >
-                      <td className="px-6 py-4 font-mono font-medium text-foreground">
-                        {inv.id}
-                      </td>
-                      <td className="px-6 py-4">
-                        <div className="flex items-center gap-3">
-                          <div className="h-7 w-7 rounded-full bg-background border border-border-custom text-2xs font-bold text-accent flex items-center justify-center shrink-0">
-                            {inv.clientName.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <p className="font-semibold text-foreground group-hover:text-accent transition-colors">
-                              {inv.clientName}
-                            </p>
-                            <p className="text-2xs text-muted-custom mt-0.5">{inv.clientEmail}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 text-muted-custom">{inv.date}</td>
-                      <td className="px-6 py-4 text-muted-custom">{inv.dueDate}</td>
-                      <td className="px-6 py-4 text-right font-medium text-foreground">
-                        {formatCurrency(inv.amount, inv.currency)}
-                      </td>
-                      <td className="px-6 py-4 text-center">
-                        <span
-                          className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold border ${
-                            inv.status === "Paid"
-                              ? "border-success-custom/20 bg-success-custom/10 text-success-custom"
-                              : inv.status === "Pending"
-                              ? "border-accent/20 bg-accent/10 text-accent"
-                              : "border-red-500/20 bg-red-500/10 text-red-500"
-                          }`}
-                        >
-                          {inv.status === "Paid" && <CheckIcon size={10} />}
-                          {inv.status === "Pending" && <ClockIcon size={10} />}
-                          {inv.status === "Overdue" && <AlertIcon size={10} />}
-                          {inv.status}
-                        </span>
-                      </td>
-                      <td className="px-6 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onEditInvoice(inv);
-                            }}
-                            className="rounded-md border border-border-custom bg-surface px-2 py-1 text-2xs font-semibold text-foreground hover:border-accent/40 hover:text-accent transition-all"
-                          >
-                            Edit
-                          </button>
-                          {inv.status !== "Paid" && (
-                            <button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onUpdateStatus(inv.id, "Paid");
-                              }}
-                              className="rounded-md border border-success-custom/20 bg-success-custom/10 px-2 py-1 text-2xs font-semibold text-success-custom hover:bg-success-custom/20 transition-all"
-                            >
-                              Mark Paid
-                            </button>
-                          )}
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onDeleteInvoice(inv.id);
-                            }}
-                            className="rounded-md border border-red-500/20 bg-red-500/10 px-2 py-1 text-2xs font-semibold text-red-400 hover:bg-red-500/20 transition-all"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                ) : (
-                  <tr>
-                    <td colSpan={7} className="px-6 py-16 text-center">
-                      <div className="flex flex-col items-center gap-3">
-                        <span className="text-muted-custom/40">
-                          <InvoicesIcon size={32} />
-                        </span>
-                        <p className="text-sm font-semibold text-muted-custom">No invoices found</p>
-                        <p className="text-2xs text-muted-custom/60">Try adjusting your search or filter</p>
-                      </div>
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-
-          {filtered.length > 0 && (
-            <div className="border-t border-border-custom px-6 py-3 flex items-center justify-between bg-background/30">
-              <span className="text-2xs text-muted-custom">
-                Showing {filtered.length} of {invoices.length} invoices
-              </span>
-              <span className="text-2xs font-semibold text-foreground">
-                Total: {formatCurrency(filtered.reduce((s, i) => s + i.amount, 0), defaultCurrency)}
-              </span>
+      <main className="p-6 space-y-6 flex-1 flex flex-col">
+        {invoices.length === 0 ? (
+          <EmptyState
+            title="Create your first invoice"
+            description="Get paid faster by building professional and design-driven A4 invoices for your clients."
+            buttonLabel="New Invoice"
+            onAction={onNewInvoice}
+            icon={<InvoicesIcon size={24} />}
+          />
+        ) : (
+          <>
+            {/* Summary stat strip */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: "All Invoices", value: counts.all, color: "text-foreground", bg: "bg-surface" },
+                { label: "Paid", value: counts.paid, color: "text-success-custom", bg: "bg-success-custom/5" },
+                { label: "Pending", value: counts.pending, color: "text-accent", bg: "bg-accent/5" },
+                { label: "Overdue", value: counts.overdue, color: "text-red-400", bg: "bg-red-500/5" },
+              ].map((s) => (
+                <button
+                  key={s.label}
+                  onClick={() => setFilter(s.label === "All Invoices" ? "All" : s.label as FilterType)}
+                  className={`rounded-xl border border-border-custom ${s.bg} px-4 py-3 text-left transition-all hover:border-accent/40 ${
+                    filter === (s.label === "All Invoices" ? "All" : s.label) ? "border-accent/60 ring-1 ring-accent/20" : ""
+                  }`}
+                >
+                  <p className="text-2xs text-muted-custom font-semibold uppercase tracking-wider">{s.label}</p>
+                  <p className={`text-lg font-bold mt-1 ${s.color}`}>{s.value}</p>
+                </button>
+              ))}
             </div>
-          )}
-        </section>
+
+            {/* Invoices List Table */}
+            <section className="rounded-xl border border-border-custom bg-surface overflow-hidden flex-1 flex flex-col">
+              <div className="border-b border-border-custom px-6 py-4 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between bg-surface shrink-0">
+                <div className="flex flex-wrap gap-2">
+                  {(["All", "Paid", "Pending", "Overdue"] as const).map((f) => (
+                    <button
+                      key={f}
+                      onClick={() => setFilter(f)}
+                      className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                        filter === f
+                          ? "bg-background text-foreground border border-border-custom"
+                          : "text-muted-custom hover:text-foreground border border-transparent"
+                      }`}
+                    >
+                      {f}
+                    </button>
+                  ))}
+                </div>
+                <div className="relative md:hidden">
+                  <span className="absolute left-3 top-2.5 text-muted-custom">
+                    <SearchIcon size={14} />
+                  </span>
+                  <input
+                    type="text"
+                    placeholder="Search invoices..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full rounded-lg border border-border-custom bg-background py-1.5 pl-9 pr-4 text-xs text-foreground placeholder-muted-custom focus:border-accent focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs border-collapse">
+                  <thead className="bg-background/50 border-b border-border-custom text-muted-custom">
+                    <tr>
+                      <th
+                        className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs cursor-pointer hover:text-foreground select-none"
+                        onClick={() => handleSort("id")}
+                      >
+                        Invoice ID <SortIndicator field="id" />
+                      </th>
+                      <th
+                        className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs cursor-pointer hover:text-foreground select-none"
+                        onClick={() => handleSort("clientName")}
+                      >
+                        Client <SortIndicator field="clientName" />
+                      </th>
+                      <th className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs">
+                        Issued
+                      </th>
+                      <th className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs">
+                        Due
+                      </th>
+                      <th
+                        className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs text-right cursor-pointer hover:text-foreground select-none"
+                        onClick={() => handleSort("amount")}
+                      >
+                        Amount <SortIndicator field="amount" />
+                      </th>
+                      <th
+                        className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs text-center cursor-pointer hover:text-foreground select-none"
+                        onClick={() => handleSort("status")}
+                      >
+                        Status <SortIndicator field="status" />
+                      </th>
+                      <th className="px-6 py-3 font-semibold uppercase tracking-wider text-2xs text-right">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border-custom">
+                    {filtered.length > 0 ? (
+                      filtered.map((inv) => (
+                        <tr
+                          key={inv.id}
+                          onClick={() => onSelectInvoice?.(inv)}
+                          className="group hover:bg-background/40 cursor-pointer transition-colors duration-150"
+                        >
+                          <td className="px-6 py-4 font-mono font-medium text-foreground">
+                            {inv.id}
+                          </td>
+                          <td className="px-6 py-4">
+                            <div className="flex items-center gap-3">
+                              <div className="h-7 w-7 rounded-full bg-background border border-border-custom text-2xs font-bold text-accent flex items-center justify-center">
+                                {inv.clientName.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <p className="font-semibold text-foreground group-hover:text-accent transition-colors">
+                                  {inv.clientName}
+                                </p>
+                                <p className="text-2xs text-muted-custom mt-0.5">{inv.clientEmail}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-6 py-4 text-muted-custom">{inv.date}</td>
+                          <td className="px-6 py-4 text-muted-custom">{inv.dueDate}</td>
+                          <td className="px-6 py-4 text-right font-medium text-foreground">
+                            {formatCurrency(inv.amount, inv.currency)}
+                          </td>
+                          <td className="px-6 py-4 text-center">
+                            <span
+                              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold border ${
+                                inv.status === "Paid"
+                                  ? "border-success-custom/20 bg-success-custom/10 text-success-custom"
+                                  : inv.status === "Pending"
+                                  ? "border-accent/20 bg-accent/10 text-accent"
+                                  : "border-red-500/20 bg-red-500/10 text-red-500"
+                              }`}
+                            >
+                              {inv.status === "Paid" && <CheckIcon size={10} />}
+                              {inv.status === "Pending" && <ClockIcon size={10} />}
+                              {inv.status === "Overdue" && <AlertIcon size={10} />}
+                              {inv.status}
+                            </span>
+                          </td>
+                          <td className="px-6 py-4 text-right" onClick={(e) => e.stopPropagation()}>
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onEditInvoice(inv);
+                                }}
+                                className="rounded-md border border-border-custom bg-surface px-2 py-1 text-2xs font-semibold text-foreground hover:border-accent/40 hover:text-accent transition-all"
+                              >
+                                Edit
+                              </button>
+                              {inv.status !== "Paid" && (
+                                <button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    onUpdateStatus(inv.id, "Paid");
+                                  }}
+                                  className="rounded-md border border-success-custom/20 bg-success-custom/10 px-2 py-1 text-2xs font-semibold text-success-custom hover:bg-success-custom/20 transition-all"
+                                >
+                                  Mark Paid
+                                </button>
+                              )}
+                              <button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onDeleteInvoice(inv.id);
+                                }}
+                                className="rounded-md border border-red-500/20 bg-red-500/10 px-2 py-1 text-2xs font-semibold text-red-400 hover:bg-red-500/20 transition-all"
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan={7} className="px-6 py-16 text-center">
+                          <div className="flex flex-col items-center gap-3">
+                            <span className="text-muted-custom/40">
+                              <InvoicesIcon size={32} />
+                            </span>
+                            <p className="text-sm font-semibold text-muted-custom">No invoices found</p>
+                            <p className="text-2xs text-muted-custom/60">Try adjusting your search or filter</p>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              {filtered.length > 0 && (
+                <div className="border-t border-border-custom px-6 py-3 flex items-center justify-between bg-background/30">
+                  <span className="text-2xs text-muted-custom">
+                    Showing {filtered.length} of {invoices.length} invoices
+                  </span>
+                  <span className="text-2xs font-semibold text-foreground">
+                    Total: {formatCurrency(filtered.reduce((s, i) => s + i.amount, 0), defaultCurrency)}
+                  </span>
+                </div>
+              )}
+            </section>
+          </>
+        )}
       </main>
     </motion.div>
   );

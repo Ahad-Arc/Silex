@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Logo,
   PlusIcon,
@@ -14,9 +15,11 @@ import {
   CommandIcon,
   FocusIcon,
   CloseIcon,
+  AlertIcon,
 } from "./Icons";
 import { Invoice } from "./InvoiceDrawer";
 import { PDFPreview } from "./PDFPreview";
+import { CommandPalette } from "./CommandPalette";
 import { BrandKitPanel } from "./BrandKitUploader";
 import { CURRENCIES, formatCurrency, getCurrency } from "../lib/currencies";
 import { InvoiceCanvas } from "./InvoiceCanvas";
@@ -87,13 +90,13 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
   const [isFocusMode, setIsFocusMode] = useState(false);
   const [saveStatus, setSaveStatus] = useState<"Saved just now" | "Saving..." | "Unsaved changes">("Saved just now");
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
-  const [commandSearch, setCommandSearch] = useState("");
-  const [selectedCommandIndex, setSelectedCommandIndex] = useState(0);
   const [focusedRow, setFocusedRow] = useState<number | null>(null);
 
   // --- NEW PDF ENGINE STATES ---
   const [isPDFPreviewOpen, setIsPDFPreviewOpen] = useState(false);
   const [isPDFDownloading, setIsPDFDownloading] = useState(false);
+  const [pdfError, setPdfError] = useState<string | null>(null);
+  const [mobileTab, setMobileTab] = useState<"canvas" | "designer">("canvas");
 
   // Skip auto-save on initial mount
   const isInitialMount = useRef(true);
@@ -240,8 +243,6 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
       if ((e.metaKey || e.ctrlKey) && e.key === "k") {
         e.preventDefault();
         setIsCommandPaletteOpen((prev) => !prev);
-        setCommandSearch("");
-        setSelectedCommandIndex(0);
       }
       // Esc -> Close Command Palette or Exit Focus Mode
       if (e.key === "Escape") {
@@ -277,7 +278,11 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
 
   const handleRemoveItem = (index: number) => {
     if (items.length <= 1) {
-      alert("An invoice must contain at least one line item.");
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Validation error", type: "error", submessage: "An invoice must contain at least one line item." },
+        })
+      );
       return;
     }
     setItems((prev) => prev.filter((_, idx) => idx !== index));
@@ -297,11 +302,155 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
     );
   };
 
+  const renderDesignerControls = () => (
+    <div className="space-y-6">
+      {/* Preset templates selector */}
+      <div className="space-y-2.5">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
+          Templates Preset
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          {(["Modern", "Classic", "Minimal", "Compact"] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTemplate(t)}
+              className={`rounded-lg border px-3 py-2 text-2xs font-semibold text-center transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+                template === t
+                  ? "border-accent bg-accent/10 text-accent font-bold"
+                  : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
+              }`}
+            >
+              {t}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Spacing adjustments */}
+      <div className="space-y-2.5">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
+          Margins & Spacing
+        </span>
+        <div className="grid grid-cols-3 gap-1.5">
+          {(["Compact", "Cozy", "Spacious"] as const).map((s) => (
+            <button
+              key={s}
+              onClick={() => setSpacing(s)}
+              className={`rounded-lg border py-1.5 text-3xs font-semibold text-center transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+                spacing === s
+                  ? "border-accent bg-accent/10 text-accent font-bold"
+                  : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
+              }`}
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Typography options */}
+      <div className="space-y-2.5">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
+          Typography Font
+        </span>
+        <div className="grid grid-cols-2 gap-2">
+          {(["Sans", "Serif", "Mono", "Modern"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFont(f)}
+              className={`rounded-lg border px-3 py-2 text-2xs font-semibold text-center transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+                font === f
+                  ? "border-accent bg-accent/10 text-accent font-bold"
+                  : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
+              }`}
+            >
+              {f === "Sans" && "Sans-serif"}
+              {f === "Serif" && "Georgia Serif"}
+              {f === "Mono" && "JetBrains Mono"}
+              {f === "Modern" && "Outfit Clean"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Accent Color Palettes */}
+      <div className="space-y-2.5">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
+          Accent Branding Color
+        </span>
+        <div className="flex gap-2.5 justify-between">
+          {(["Indigo", "Emerald", "Violet", "Rose", "Slate"] as const).map((a) => {
+            const colorHex = getAccentColorHex(a);
+            const isSelected = accent === a;
+            return (
+              <button
+                key={a}
+                onClick={() => setAccent(a)}
+                className={`h-7 w-7 rounded-full flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 relative ${
+                  isSelected
+                    ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
+                    : ""
+                }`}
+                style={{ backgroundColor: colorHex }}
+                title={`${a} Accent`}
+              >
+                {isSelected && (
+                  <CheckIcon size={12} className={a === "Emerald" ? "text-slate-900" : "text-white"} />
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Logo Presets Selection */}
+      <div className="space-y-2.5">
+        <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
+          Brand Monogram Logo
+        </span>
+        <div className="grid grid-cols-4 gap-1.5">
+          {(["Silex", "Monogram", "Diamond", "None"] as const).map((preset) => (
+            <button
+              key={preset}
+              onClick={() => setLogoPreset(preset)}
+              className={`rounded-lg border py-1.5 text-3xs font-semibold text-center transition-all focus:outline-none focus-visible:ring-1 focus-visible:ring-accent ${
+                logoPreset === preset
+                  ? "border-accent bg-accent/10 text-accent font-bold"
+                  : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
+              }`}
+            >
+              {preset}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Brand Kit */}
+      <BrandKitPanel
+        logoDataUrl={brandKit.logoDataUrl}
+        stampDataUrl={brandKit.stampDataUrl}
+        stampOpacity={brandKit.stampOpacity}
+        stampEnabled={brandKit.stampEnabled}
+        onSetLogo={(url) => {
+          brandKit.setLogo(url);
+          if (url) setLogoPreset("None");
+        }}
+        onSetStamp={brandKit.setStamp}
+        onStampOpacity={brandKit.setStampOpacity}
+        onStampToggle={brandKit.setStampEnabled}
+      />
+    </div>
+  );
+
   // --- MANUAL SAVE ACTION ---
   // Validates, saves, and exits back to dashboard. Toast is shown by the parent.
   const handleSave = () => {
     if (!clientName.trim()) {
-      alert("Please enter a client name before saving.");
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Validation error", type: "error", submessage: "Please enter a client name before saving." },
+        })
+      );
       return;
     }
     setSaveStatus("Saving...");
@@ -375,7 +524,8 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
       });
 
       if (!response.ok) {
-        throw new Error("Failed to render statement PDF");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to render statement PDF");
       }
 
       const blob = await response.blob();
@@ -389,7 +539,7 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
       window.URL.revokeObjectURL(downloadUrl);
     } catch (error) {
       console.error("PDF Export failed:", error);
-      alert("Could not compile document PDF. Puppeteer rendering browser is initializing.");
+      setPdfError("Could not compile document PDF. Puppeteer rendering browser is initializing. Please try again in a few seconds.");
     } finally {
       setIsPDFDownloading(false);
     }
@@ -398,58 +548,26 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
   // --- COMMAND PALETTE SPECIFIC CONFIGS ---
   const commands = useMemo(() => {
     return [
-      { name: "Add Line Item", action: () => handleAddItem(), category: "Editor" },
-      { name: "Save Invoice Draft", action: () => handleSave(), category: "Actions" },      { name: "Export Statement PDF", action: () => handleDownloadPDF(), category: "Actions" },
-      { name: "Toggle Immersive Focus Mode", action: () => setIsFocusMode((prev) => !prev), category: "Zen" },
-      { name: "Use Template: Modern", action: () => setTemplate("Modern"), category: "Layout" },
-      { name: "Use Template: Classic", action: () => setTemplate("Classic"), category: "Layout" },
-      { name: "Use Template: Minimal", action: () => setTemplate("Minimal"), category: "Layout" },
-      { name: "Use Template: Compact", action: () => setTemplate("Compact"), category: "Layout" },
-      { name: "Use Font: Sans-serif", action: () => setFont("Sans"), category: "Typography" },
-      { name: "Use Font: Georgia Serif", action: () => setFont("Serif"), category: "Typography" },
-      { name: "Use Font: JetBrains Mono", action: () => setFont("Mono"), category: "Typography" },
-      { name: "Use Font: Outfit Clean", action: () => setFont("Modern"), category: "Typography" },
-      { name: "Use Accent: Indigo", action: () => setAccent("Indigo"), category: "Branding" },
-      { name: "Use Accent: Emerald", action: () => setAccent("Emerald"), category: "Branding" },
-      { name: "Use Accent: Violet", action: () => setAccent("Violet"), category: "Branding" },
-      { name: "Use Accent: Rose", action: () => setAccent("Rose"), category: "Branding" },
-      { name: "Use Accent: Slate", action: () => setAccent("Slate"), category: "Branding" },
-      { name: "Return to Invoices Dashboard", action: () => onCancel(), category: "Navigation" },
+      { name: "Add Line Item", action: () => handleAddItem(), category: "Actions" as const, shortcut: "↵ Add" },
+      { name: "Save Invoice Draft", action: () => handleSave(), category: "Actions" as const, shortcut: "⌘S" },
+      { name: "Export Statement PDF", action: () => handleDownloadPDF(), category: "Actions" as const },
+      { name: "Toggle Immersive Focus Mode", action: () => setIsFocusMode((prev) => !prev), category: "Builder Layout" as const, shortcut: "⌘." },
+      { name: "Use Template: Modern", action: () => setTemplate("Modern"), category: "Builder Layout" as const },
+      { name: "Use Template: Classic", action: () => setTemplate("Classic"), category: "Builder Layout" as const },
+      { name: "Use Template: Minimal", action: () => setTemplate("Minimal"), category: "Builder Layout" as const },
+      { name: "Use Template: Compact", action: () => setTemplate("Compact"), category: "Builder Layout" as const },
+      { name: "Use Font: Sans-serif", action: () => setFont("Sans"), category: "Design Defaults" as const },
+      { name: "Use Font: Georgia Serif", action: () => setFont("Serif"), category: "Design Defaults" as const },
+      { name: "Use Font: JetBrains Mono", action: () => setFont("Mono"), category: "Design Defaults" as const },
+      { name: "Use Font: Outfit Clean", action: () => setFont("Modern"), category: "Design Defaults" as const },
+      { name: "Use Accent: Indigo", action: () => setAccent("Indigo"), category: "Design Defaults" as const },
+      { name: "Use Accent: Emerald", action: () => setAccent("Emerald"), category: "Design Defaults" as const },
+      { name: "Use Accent: Violet", action: () => setAccent("Violet"), category: "Design Defaults" as const },
+      { name: "Use Accent: Rose", action: () => setAccent("Rose"), category: "Design Defaults" as const },
+      { name: "Use Accent: Slate", action: () => setAccent("Slate"), category: "Design Defaults" as const },
+      { name: "Return to Invoices Dashboard", action: () => onCancel(), category: "Navigation" as const },
     ];
   }, [items, id, clientName, clientEmail, clientAddress, grandTotal]);
-
-  const filteredCommands = useMemo(() => {
-    if (!commandSearch.trim()) return commands;
-    return commands.filter((cmd) =>
-      cmd.name.toLowerCase().includes(commandSearch.toLowerCase()) ||
-      cmd.category.toLowerCase().includes(commandSearch.toLowerCase())
-    );
-  }, [commands, commandSearch]);
-
-  const handleCommandSelect = (index: number) => {
-    const cmd = filteredCommands[index];
-    if (cmd) {
-      cmd.action();
-      setIsCommandPaletteOpen(false);
-    }
-  };
-
-  const handlePaletteKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "ArrowDown") {
-      e.preventDefault();
-      setSelectedCommandIndex((prev) =>
-        prev < filteredCommands.length - 1 ? prev + 1 : 0
-      );
-    } else if (e.key === "ArrowUp") {
-      e.preventDefault();
-      setSelectedCommandIndex((prev) =>
-        prev > 0 ? prev - 1 : filteredCommands.length - 1
-      );
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      handleCommandSelect(selectedCommandIndex);
-    }
-  };
 
   // --- PAGE BREAK splits detection logic ---
   const isMultiPage = items.length > 4;
@@ -461,9 +579,9 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
       
       {/* 1. LEFT COLLAPSED WORKSPACE SIDEBAR */}
       <div
-        className={`border-r border-border-custom bg-background flex flex-col items-center justify-between py-4 transition-all duration-500 ease-in-out z-20 ${
+        className={`border-r border-border-custom bg-background flex-col items-center justify-between py-4 transition-all duration-500 ease-in-out z-20 ${
           isFocusMode ? "w-0 opacity-0 overflow-hidden pointer-events-none" : "w-[64px] opacity-100"
-        }`}
+        } hidden md:flex`}
       >
         {/* Workspace Brand */}
         <div className="space-y-6 flex flex-col items-center">
@@ -494,8 +612,6 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
           <button
             onClick={() => {
               setIsCommandPaletteOpen(true);
-              setCommandSearch("");
-              setSelectedCommandIndex(0);
             }}
             className="h-9 w-9 rounded-lg flex items-center justify-center text-muted-custom hover:bg-surface hover:text-foreground transition-all"
             title="Open Command Palette (⌘K)"
@@ -533,7 +649,73 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
           isFocusMode ? "bg-[#050507]" : "bg-[#0f0f12]"
         }`}
       >
-        
+        {/* MOBILE NAVIGATION BAR (Only visible on small screens) */}
+        {!isFocusMode && (
+          <div className="w-full max-w-[812px] mb-4 flex lg:hidden items-center justify-between bg-surface border border-border-custom rounded-xl p-2 shrink-0 select-none shadow-lg">
+            <div className="flex gap-1">
+              <button
+                onClick={() => setMobileTab("canvas")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  mobileTab === "canvas"
+                    ? "bg-accent text-white"
+                    : "text-muted-custom hover:text-foreground hover:bg-background/40"
+                }`}
+              >
+                Canvas
+              </button>
+              <button
+                onClick={() => setMobileTab("designer")}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                  mobileTab === "designer"
+                    ? "bg-accent text-white"
+                    : "text-muted-custom hover:text-foreground hover:bg-background/40"
+                }`}
+              >
+                Designer
+              </button>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setIsCommandPaletteOpen(true)}
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-custom hover:bg-background/40 hover:text-foreground transition-all"
+                title="Command Palette"
+              >
+                <CommandIcon size={15} />
+              </button>
+              <button
+                onClick={handleSave}
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-custom hover:bg-background/40 hover:text-foreground transition-all"
+                title="Save changes"
+              >
+                <SaveIcon size={15} />
+              </button>
+              <button
+                onClick={onCancel}
+                className="h-8 w-8 rounded-lg flex items-center justify-center text-muted-custom hover:bg-background/40 hover:text-foreground transition-all"
+                title="Exit Builder"
+              >
+                <UndoIcon size={15} />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* MOBILE DESIGNER SETTINGS PANEL */}
+        {!isFocusMode && mobileTab === "designer" && (
+          <div className="w-full max-w-[500px] bg-surface border border-border-custom rounded-2xl p-6 overflow-y-auto block lg:hidden space-y-6 animate-in fade-in duration-300">
+            <div className="flex items-center gap-2 border-b border-border-custom pb-4">
+              <span className="text-accent">
+                <SparklesIcon size={18} />
+              </span>
+              <h3 className="text-sm font-bold tracking-tight text-foreground">
+                Silex Designer Settings
+              </h3>
+            </div>
+            {renderDesignerControls()}
+          </div>
+        )}
+
         {/* TOP FLOATING CONTEXT HEADER */}
         {!isFocusMode && (
           <div className="w-full max-w-[812px] mb-6 flex justify-between items-center px-4 transition-all duration-300">
@@ -552,20 +734,34 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
             </div>
 
             {/* Muted Auto Save Indicator */}
-            <div className="flex items-center gap-2">
-              <span
-                className={`h-1.5 w-1.5 rounded-full transition-colors duration-300 ${
+            <motion.div
+              layout
+              className="flex items-center gap-2 bg-[#121215]/80 border border-border-custom px-2.5 py-1 rounded-full text-muted-custom select-none"
+            >
+              <motion.span
+                layout
+                animate={{
+                  scale: saveStatus === "Saving..." ? [1, 1.25, 1] : 1,
+                }}
+                transition={{
+                  repeat: saveStatus === "Saving..." ? Infinity : 0,
+                  duration: 1.2,
+                }}
+                className={`h-1.5 w-1.5 rounded-full transition-colors duration-500 ${
                   saveStatus === "Saved just now"
-                    ? "bg-success-custom"
+                    ? "bg-success-custom shadow-[0_0_8px_rgba(0,210,160,0.4)]"
                     : saveStatus === "Saving..."
-                    ? "bg-accent animate-pulse"
-                    : "bg-amber-500"
+                    ? "bg-accent"
+                    : "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.4)]"
                 }`}
               />
-              <span className="text-2xs font-medium text-muted-custom font-mono transition-all duration-300">
+              <motion.span
+                layout
+                className="text-[10px] font-semibold font-mono tracking-tight"
+              >
                 {saveStatus}
-              </span>
-            </div>
+              </motion.span>
+            </motion.div>
           </div>
         )}
 
@@ -600,33 +796,36 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         )}
 
         {/* ── Invoice Canvas — template-driven layout ── */}
-        <InvoiceCanvas
-          id={id} clientName={clientName} clientEmail={clientEmail}
-          clientAddress={clientAddress} clientTaxId={clientTaxId}
-          companyName={companyName} companyAddress={companyAddress} companyTaxId={companyTaxId}
-          date={date} dueDate={dueDate} items={items} notes={notes} paymentTerms={paymentTerms}
-          taxRate={taxRate} discountRate={discountRate}
-          subtotal={subtotal} discountVal={discountVal} taxVal={taxVal} grandTotal={grandTotal}
-          currency={currency}
-          template={template} font={font} accent={accent} spacing={spacing} logoPreset={logoPreset}
-          logoDataUrl={brandKit.logoDataUrl} stampDataUrl={brandKit.stampDataUrl}
-          watermarkEnabled={brandKit.stampEnabled} watermarkOpacity={brandKit.stampOpacity}
-          focusedRow={focusedRow} onSetFocusedRow={setFocusedRow}
-          onUpdateItem={handleUpdateItem} onRemoveItem={handleRemoveItem} onAddItem={handleAddItem}
-          onSetId={setId} onSetDate={setDate} onSetDueDate={setDueDate}
-          onSetClientName={setClientName} onSetClientEmail={setClientEmail} onSetClientAddress={setClientAddress}
-          onSetCompanyName={setCompanyName} onSetCompanyAddress={setCompanyAddress} onSetCompanyTaxId={setCompanyTaxId}
-          onSetNotes={setNotes} onSetPaymentTerms={setPaymentTerms}
-          onSetTaxRate={setTaxRate} onSetDiscountRate={setDiscountRate}
-        />
+        <div className={`w-full max-w-[812px] flex-col items-center transition-all ${
+          !isFocusMode && mobileTab === "designer" ? "hidden lg:flex" : "flex"
+        }`}>
+          <InvoiceCanvas
+            id={id} clientName={clientName} clientEmail={clientEmail}
+            clientAddress={clientAddress} clientTaxId={clientTaxId}
+            companyName={companyName} companyAddress={companyAddress} companyTaxId={companyTaxId}
+            date={date} dueDate={dueDate} items={items} notes={notes} paymentTerms={paymentTerms}
+            taxRate={taxRate} discountRate={discountRate}
+            subtotal={subtotal} discountVal={discountVal} taxVal={taxVal} grandTotal={grandTotal}
+            currency={currency}
+            template={template} font={font} accent={accent} spacing={spacing} logoPreset={logoPreset}
+            logoDataUrl={brandKit.logoDataUrl} stampDataUrl={brandKit.stampDataUrl}
+            watermarkEnabled={brandKit.stampEnabled} watermarkOpacity={brandKit.stampOpacity}
+            focusedRow={focusedRow} onSetFocusedRow={setFocusedRow}
+            onUpdateItem={handleUpdateItem} onRemoveItem={handleRemoveItem} onAddItem={handleAddItem}
+            onSetId={setId} onSetDate={setDate} onSetDueDate={setDueDate}
+            onSetClientName={setClientName} onSetClientEmail={setClientEmail} onSetClientAddress={setClientAddress}
+            onSetCompanyName={setCompanyName} onSetCompanyAddress={setCompanyAddress} onSetCompanyTaxId={setCompanyTaxId}
+            onSetNotes={setNotes} onSetPaymentTerms={setPaymentTerms}
+            onSetTaxRate={setTaxRate} onSetDiscountRate={setDiscountRate}
+          />
+        </div>
       </div>
 
-      {/* 3. RIGHT CONFIGURATION TOOLBOX */}
       {/* 3. RIGHT CONFIGURATION TOOLBOX */}
       <div
         className={`border-l border-border-custom bg-background flex flex-col justify-between overflow-y-auto transition-all duration-500 ease-in-out z-20 ${
           isFocusMode ? "w-0 opacity-0 overflow-hidden pointer-events-none" : "w-[300px] opacity-100"
-        }`}
+        } hidden lg:flex`}
       >
         {/* Designer controls list */}
         <div className="p-6 space-y-6">
@@ -639,144 +838,10 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
                 Silex Designer
               </h3>
             </div>
-            <span className="text-[10px] text-muted-custom font-mono">⌘. Focus</span>
+            <span className="text-[10px] text-muted-custom font-mono">⌘K Palette</span>
           </div>
 
-          {/* Preset templates selector */}
-          <div className="space-y-2.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
-              Templates Preset
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {(["Modern", "Classic", "Minimal", "Compact"] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTemplate(t)}
-                  className={`rounded-lg border px-3 py-2 text-2xs font-semibold text-center transition-all ${
-                    template === t
-                      ? "border-accent bg-accent/10 text-accent font-bold"
-                      : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Spacing adjustments */}
-          <div className="space-y-2.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
-              Margins & Spacing
-            </span>
-            <div className="grid grid-cols-3 gap-1.5">
-              {(["Compact", "Cozy", "Spacious"] as const).map((s) => (
-                <button
-                  key={s}
-                  onClick={() => setSpacing(s)}
-                  className={`rounded-lg border py-1.5 text-3xs font-semibold text-center transition-all ${
-                    spacing === s
-                      ? "border-accent bg-accent/10 text-accent font-bold"
-                      : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
-                  }`}
-                >
-                  {s}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Typography options */}
-          <div className="space-y-2.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
-              Typography Font
-            </span>
-            <div className="grid grid-cols-2 gap-2">
-              {(["Sans", "Serif", "Mono", "Modern"] as const).map((f) => (
-                <button
-                  key={f}
-                  onClick={() => setFont(f)}
-                  className={`rounded-lg border px-3 py-2 text-2xs font-semibold text-center transition-all ${
-                    font === f
-                      ? "border-accent bg-accent/10 text-accent font-bold"
-                      : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
-                  }`}
-                >
-                  {f === "Sans" && "Sans-serif"}
-                  {f === "Serif" && "Georgia Serif"}
-                  {f === "Mono" && "JetBrains Mono"}
-                  {f === "Modern" && "Outfit Clean"}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Accent Color Palettes */}
-          <div className="space-y-2.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
-              Accent Branding Color
-            </span>
-            <div className="flex gap-2.5 justify-between">
-              {(["Indigo", "Emerald", "Violet", "Rose", "Slate"] as const).map((a) => {
-                const colorHex = getAccentColorHex(a);
-                const isSelected = accent === a;
-                return (
-                  <button
-                    key={a}
-                    onClick={() => setAccent(a)}
-                    className={`h-7 w-7 rounded-full flex items-center justify-center transition-all hover:scale-110 relative ${
-                      isSelected
-                        ? "ring-2 ring-accent ring-offset-2 ring-offset-background"
-                        : ""
-                    }`}
-                    style={{ backgroundColor: colorHex }}
-                    title={`${a} Accent`}
-                  >
-                    {isSelected && (
-                      <CheckIcon size={12} className={a === "Emerald" ? "text-slate-900" : "text-white"} />
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Logo Presets Selection */}
-          <div className="space-y-2.5">
-            <span className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">
-              Brand Monogram Logo
-            </span>
-            <div className="grid grid-cols-4 gap-1.5">
-              {(["Silex", "Monogram", "Diamond", "None"] as const).map((preset) => (
-                <button
-                  key={preset}
-                  onClick={() => setLogoPreset(preset)}
-                  className={`rounded-lg border py-1.5 text-3xs font-semibold text-center transition-all ${
-                    logoPreset === preset
-                      ? "border-accent bg-accent/10 text-accent font-bold"
-                      : "border-border-custom bg-surface text-muted-custom hover:text-foreground"
-                  }`}
-                >
-                  {preset}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* ── Brand Kit ─────────────────────────────────────────────── */}
-          <BrandKitPanel
-            logoDataUrl={brandKit.logoDataUrl}
-            stampDataUrl={brandKit.stampDataUrl}
-            stampOpacity={brandKit.stampOpacity}
-            stampEnabled={brandKit.stampEnabled}
-            onSetLogo={(url) => {
-              brandKit.setLogo(url);
-              if (url) setLogoPreset("None");
-            }}
-            onSetStamp={brandKit.setStamp}
-            onStampOpacity={brandKit.setStampOpacity}
-            onStampToggle={brandKit.setStampEnabled}
-          />
+          {renderDesignerControls()}
         </div>
 
         {/* Global Action Operations */}
@@ -815,73 +880,11 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
       </div>
 
       {/* 4. FLOATING COMMAND PALETTE OVERLAY (⌘K / Ctrl+K) */}
-      {isCommandPaletteOpen && (
-        <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-md flex items-start justify-center pt-24 px-4">
-          <div
-            onKeyDown={handlePaletteKeyDown}
-            className="w-full max-w-lg bg-[#121215] border border-border-custom rounded-xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-150 flex flex-col"
-          >
-            <div className="relative border-b border-border-custom flex items-center px-4">
-              <span className="text-muted-custom">
-                <CommandIcon size={16} />
-              </span>
-              <input
-                autoFocus
-                type="text"
-                value={commandSearch}
-                onChange={(e) => {
-                  setCommandSearch(e.target.value);
-                  setSelectedCommandIndex(0);
-                }}
-                className="w-full py-3.5 pl-3 pr-8 bg-transparent text-sm text-foreground focus:outline-none placeholder-muted-custom"
-                placeholder="Search commands or layout actions..."
-              />
-              <button
-                onClick={() => setIsCommandPaletteOpen(false)}
-                className="absolute right-4 p-1 rounded-md text-muted-custom hover:bg-surface hover:text-foreground transition-all"
-              >
-                <CloseIcon size={14} />
-              </button>
-            </div>
-
-            <div className="max-h-[300px] overflow-y-auto p-2 space-y-0.5">
-              {filteredCommands.length > 0 ? (
-                filteredCommands.map((cmd, idx) => {
-                  const isSelected = selectedCommandIndex === idx;
-                  return (
-                    <button
-                      key={cmd.name}
-                      onClick={() => handleCommandSelect(idx)}
-                      className={`w-full text-left rounded-lg px-3.5 py-2.5 flex justify-between items-center text-xs font-semibold transition-all ${
-                        isSelected
-                          ? "bg-accent/15 text-accent border border-accent/20"
-                          : "text-muted-custom border border-transparent hover:bg-surface/50 hover:text-foreground"
-                      }`}
-                    >
-                      <span>{cmd.name}</span>
-                      <span className="text-[10px] text-muted-custom uppercase font-semibold bg-surface border border-border-custom px-2 py-0.5 rounded font-mono">
-                        {cmd.category}
-                      </span>
-                    </button>
-                  );
-                })
-              ) : (
-                <div className="py-8 text-center text-xs text-muted-custom font-medium">
-                  No matching workspace actions found.
-                </div>
-              )}
-            </div>
-
-            <div className="border-t border-border-custom/50 px-4 py-2.5 bg-background/50 flex justify-between items-center text-[10px] text-muted-custom font-mono">
-              <div className="flex gap-2">
-                <span>↑↓ Navigate</span>
-                <span>↵ Select</span>
-              </div>
-              <span>ESC Close</span>
-            </div>
-          </div>
-        </div>
-      )}
+      <CommandPalette
+        isOpen={isCommandPaletteOpen}
+        onClose={() => setIsCommandPaletteOpen(false)}
+        commands={commands}
+      />
 
       {/* 5. GLASSMORPHIC PDF GENERATION EXPORT LOADER */}
       {isPDFDownloading && (
@@ -1007,6 +1010,61 @@ export const InvoiceBuilder: React.FC<InvoiceBuilderProps> = ({
         watermarkEnabled={brandKit.stampEnabled}
         watermarkOpacity={brandKit.stampOpacity}
       />
+
+      {/* 7. PDF ERROR MODAL */}
+      <AnimatePresence>
+        {pdfError && (
+          <div className="fixed inset-0 z-[220] flex items-center justify-center p-4">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/80 backdrop-blur-sm"
+              onClick={() => setPdfError(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 16 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 16 }}
+              className="relative bg-[#111113] border border-border-custom rounded-2xl w-full max-w-[420px] overflow-hidden shadow-2xl z-10 p-6 space-y-6"
+            >
+              <div className="flex items-start gap-4">
+                <div className="h-10 w-10 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 flex items-center justify-center shrink-0">
+                  <AlertIcon size={20} />
+                </div>
+                <div className="flex-1 space-y-1.5">
+                  <h3 className="text-sm font-bold text-foreground leading-none">Compile Error</h3>
+                  <p className="text-2xs text-muted-custom leading-relaxed">{pdfError}</p>
+                </div>
+                <button
+                  onClick={() => setPdfError(null)}
+                  className="text-muted-custom hover:text-foreground p-0.5 rounded-lg transition-colors shrink-0"
+                >
+                  <CloseIcon size={14} />
+                </button>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  onClick={() => setPdfError(null)}
+                  className="rounded-lg border border-border-custom px-4 py-2 text-2xs font-semibold text-muted-custom hover:text-foreground hover:bg-surface transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => {
+                    setPdfError(null);
+                    handleDownloadPDF();
+                  }}
+                  className="rounded-lg bg-accent px-4 py-2 text-2xs font-bold text-white hover:opacity-90 active:scale-95 transition-all"
+                >
+                  Retry Export
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
     </div>
   );

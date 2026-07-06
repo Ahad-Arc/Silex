@@ -10,25 +10,37 @@ import { CURRENCIES } from "../../lib/currencies";
 import { motion } from "framer-motion";
 import { useMotionPresets } from "../../lib/motionPresets";
 
-interface SettingsPageProps { ws: Workspace; }
+import { ConfirmModal } from "../ConfirmModal";
 
-type Tab = "Business" | "Brand Kit" | "Invoice Defaults" | "Tax & Currency" | "PDF & Export" | "Security";
+interface SettingsPageProps {
+  ws: Workspace;
+  profileState: any;
+}
 
-const TABS: Tab[] = ["Business", "Brand Kit", "Invoice Defaults", "Tax & Currency", "PDF & Export", "Security"];
+type Tab = "Business" | "Brand Kit" | "Invoice Defaults" | "Tax & Currency" | "PDF & Export" | "Profile" | "Account";
+
+const TABS: Tab[] = ["Business", "Brand Kit", "Invoice Defaults", "Tax & Currency", "PDF & Export", "Profile", "Account"];
 
 // ── Shared Field ──────────────────────────────────────────────────────────────
 const Field: React.FC<{
   label: string; value: string; onChange: (v: string) => void;
   type?: string; placeholder?: string; mono?: boolean;
-}> = ({ label, value, onChange, type = "text", placeholder, mono }) => (
-  <div className="space-y-1.5">
-    <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">{label}</label>
-    <input type={type} value={value} placeholder={placeholder}
-      onChange={(e) => onChange(e.target.value)}
-      className={`w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground placeholder-muted-custom/50 focus:border-accent focus:outline-none transition-colors ${mono ? "font-mono" : ""}`}
-    />
-  </div>
-);
+}> = ({ label, value, onChange, type = "text", placeholder, mono }) => {
+  const id = React.useId();
+  return (
+    <div className="space-y-1.5">
+      <label htmlFor={id} className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">{label}</label>
+      <input
+        id={id}
+        type={type}
+        value={value}
+        placeholder={placeholder}
+        onChange={(e) => onChange(e.target.value)}
+        className={`w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground placeholder-muted-custom/50 focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-all ${mono ? "font-mono" : ""}`}
+      />
+    </div>
+  );
+};
 
 // ── Shared Card ───────────────────────────────────────────────────────────────
 const Card: React.FC<{ title?: string; children: React.ReactNode }> = ({ title, children }) => (
@@ -145,7 +157,7 @@ const SignatureSlot: React.FC<{
 // ═══════════════════════════════════════════════════════════════════════════════
 // MAIN COMPONENT
 // ═══════════════════════════════════════════════════════════════════════════════
-export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
+export const SettingsPage: React.FC<SettingsPageProps> = ({ ws, profileState }) => {
   const { pageTransition } = useMotionPresets();
   const [activeTab, setActiveTab] = useState<Tab>("Business");
   const [saved, setSaved] = useState(false);
@@ -155,10 +167,45 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
   const [notifOverdue, setNotifOverdue] = useState(true);
   const [notifWeekly,  setNotifWeekly]  = useState(false);
   const [notifClient,  setNotifClient]  = useState(true);
-  const [twoFactor,    setTwoFactor]    = useState(true);
-  const [loginNotif,   setLoginNotif]   = useState(false);
 
-  const handleSave = () => { setSaved(true); setTimeout(() => setSaved(false), 2000); };
+  const profile = profileState?.profile;
+  const email = profileState?.email || "";
+  const createdAt = profileState?.createdAt || "";
+
+  // Local state for profile inputs
+  const [fullName, setFullName] = useState("");
+  const [displayName, setDisplayName] = useState("");
+  const [timezone, setTimezone] = useState("UTC");
+  const [language, setLanguage] = useState("en");
+  const [currencyPref, setCurrencyPref] = useState("USD");
+
+  // Local state for account inputs
+  const [newEmail, setNewEmail] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+
+  // Upload and modal state
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  
+  const avatarFileRef = useRef<HTMLInputElement>(null);
+
+  // Hydrate fields on load
+  React.useEffect(() => {
+    if (profile) {
+      setFullName(profile.full_name || "");
+      setDisplayName(profile.display_name || "");
+      setTimezone(profile.timezone || "UTC");
+      setLanguage(profile.language || "en");
+      setCurrencyPref(profile.currency_preference || "USD");
+    }
+  }, [profile]);
+
+  const handleSave = () => {
+    setSaved(true);
+    setTimeout(() => setSaved(false), 2000);
+  };
+
   const hasBrandAssets = !!(ws.logoDataUrl || ws.stampDataUrl || ws.signatureDataUrl);
 
   // Invoice number format live preview
@@ -168,6 +215,141 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
     const n = String(ws.defInvCounter).padStart(4, "0");
     return ws.defInvFormat.replace("{YYYY}", y).replace("{YY}", y.slice(2)).replace("{MM}", m).replace(/\{0+1\}/, n);
   })();
+
+  // Handlers for profile
+  const handleSaveProfile = async () => {
+    try {
+      await profileState.updateProfile({
+        full_name: fullName,
+        display_name: displayName,
+        timezone,
+        language,
+        currency_preference: currencyPref,
+      });
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Profile updated", type: "success", submessage: "Your profile changes were successfully persisted." },
+        })
+      );
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Failed to update profile", type: "error", submessage: err.message || "Unknown error occurred" },
+        })
+      );
+    }
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "File too large", type: "error", submessage: "Maximum allowed file size for avatar is 2 MB." },
+        })
+      );
+      return;
+    }
+
+    try {
+      setUploadProgress(0);
+      await profileState.uploadAvatar(file, (progress: number) => {
+        setUploadProgress(progress);
+      });
+      setUploadProgress(null);
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Profile photo uploaded", type: "success", submessage: "Your avatar has been updated." },
+        })
+      );
+    } catch (err: any) {
+      setUploadProgress(null);
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Upload failed", type: "error", submessage: err.message },
+        })
+      );
+    }
+  };
+
+  const handleRemoveAvatar = async () => {
+    try {
+      await profileState.removeAvatar();
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Profile photo removed", type: "success", submessage: "Your avatar has been deleted." },
+        })
+      );
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Removal failed", type: "error", submessage: err.message },
+        })
+      );
+    }
+  };
+
+  // Handlers for account
+  const handleUpdateEmail = async () => {
+    if (!newEmail) return;
+    try {
+      await profileState.updateEmail(newEmail);
+      setNewEmail("");
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Verification sent", type: "success", submessage: "Check both your old and new emails to confirm the address change." },
+        })
+      );
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Email update failed", type: "error", submessage: err.message },
+        })
+      );
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (!newPassword || !confirmPassword) return;
+    if (newPassword !== confirmPassword) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Passwords do not match", type: "error", submessage: "Confirmation password must match new password." },
+        })
+      );
+      return;
+    }
+    try {
+      await profileState.updatePassword(newPassword);
+      setNewPassword("");
+      setConfirmPassword("");
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Password updated", type: "success", submessage: "Your account password has been changed." },
+        })
+      );
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Password update failed", type: "error", submessage: err.message },
+        })
+      );
+    }
+  };
+
+  const handleDeleteAccountConfirm = async () => {
+    try {
+      await profileState.deleteAccount();
+    } catch (err: any) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Account deletion failed", type: "error", submessage: err.message },
+        })
+      );
+    }
+  };
 
   return (
     <motion.div
@@ -181,7 +363,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
       <header className="border-b border-border-custom px-6 py-4 flex items-center justify-between gap-4 sticky top-0 bg-background/80 backdrop-blur-md z-30">
         <div>
           <h1 className="text-lg font-bold tracking-tight text-foreground">Workspace Settings</h1>
-          <p className="text-2xs text-muted-custom font-medium mt-0.5">Configure once — every invoice inherits these settings automatically.</p>
+          <p className="text-2xs text-muted-custom font-medium mt-0.5 font-medium">Configure once — every invoice inherits these settings automatically.</p>
         </div>
         <button onClick={handleSave} className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all active:scale-95 ${saved ? "bg-success-custom/10 border border-success-custom/20 text-success-custom" : "bg-accent text-white hover:opacity-90 shadow-md shadow-accent/10"}`}>
           {saved ? <CheckIcon size={13} /> : <SettingsIcon size={13} />}
@@ -270,11 +452,11 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
               </div>
 
               <Card title="Company Logo">
-                <p className="text-2xs text-muted-custom -mt-1">Displayed in invoice header and PDF exports. A crop tool opens after upload.</p>
+                <p className="text-2xs text-muted-custom -mt-1 font-medium">Displayed in invoice header and PDF exports. A crop tool opens after upload.</p>
                 <LogoSlot dataUrl={ws.logoDataUrl} onSet={ws.setLogo} onRemove={() => ws.setLogo(null)} />
                 {ws.logoDataUrl && (
                   <div className="rounded-lg border border-border-custom bg-black/30 p-3">
-                    <p className="text-[10px] font-semibold text-muted-custom mb-2 uppercase tracking-wider">Invoice Header Preview</p>
+                    <p className="text-[10px] font-semibold text-muted-custom mb-2 uppercase tracking-wider font-medium">Invoice Header Preview</p>
                     <div className="flex items-center gap-3">
                       <img src={ws.logoDataUrl} alt="Preview" style={{ height: 28, maxWidth: 88, objectFit: "contain" }} />
                       <div>
@@ -287,7 +469,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
               </Card>
 
               <Card title="Company Stamp — Watermark">
-                <p className="text-2xs text-muted-custom -mt-1">
+                <p className="text-2xs text-muted-custom -mt-1 font-medium">
                   Used as a centred watermark behind invoice content (5–8% opacity). <strong className="text-foreground">The logo is never used as watermark — only the stamp.</strong>
                 </p>
                 <StampSlot dataUrl={ws.stampDataUrl} opacity={ws.stampOpacity} enabled={ws.stampEnabled}
@@ -295,7 +477,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
                   onOpacityChange={ws.setStampOpacity} onToggle={ws.setStampEnabled} />
                 {ws.stampDataUrl && (
                   <div className="rounded-lg border border-border-custom bg-background/50 p-3">
-                    <p className="text-[10px] font-semibold text-muted-custom mb-2 uppercase tracking-wider">Watermark Preview</p>
+                    <p className="text-[10px] font-semibold text-muted-custom mb-2 uppercase tracking-wider font-medium">Watermark Preview</p>
                     <div className="relative rounded border border-slate-200 bg-white overflow-hidden flex items-center justify-center" style={{ height: 80 }}>
                       <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
                         <img src={ws.stampDataUrl} alt="" style={{ maxWidth: "52%", opacity: ws.stampEnabled ? ws.stampOpacity : 0.06, transform: "rotate(-15deg)", objectFit: "contain" }} />
@@ -310,7 +492,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
               </Card>
 
               <Card title="Digital Signature">
-                <p className="text-2xs text-muted-custom -mt-1">Appears in the invoice signature area and PDF exports. Upload an image or draw your signature.</p>
+                <p className="text-2xs text-muted-custom -mt-1 font-medium">Appears in the invoice signature area and PDF exports. Upload an image or draw your signature.</p>
                 <SignatureSlot dataUrl={ws.signatureDataUrl} onSet={ws.setSignature} onRemove={() => ws.setSignature(null)} />
               </Card>
 
@@ -331,7 +513,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
 
               <Card title="Layout">
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">Default Template</label>
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Default Template</label>
                   <select value={ws.defTemplate} onChange={(e) => ws.setDefTemplate(e.target.value)}
                     className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none">
                     {["Modern", "Classic", "Minimal", "Compact"].map((t) => <option key={t} value={t}>{t}</option>)}
@@ -341,14 +523,14 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
 
               <Card title="Payment Terms">
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">Default Terms</label>
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Default Terms</label>
                   <select value={ws.defPayTerms} onChange={(e) => ws.setDefPayTerms(e.target.value)}
                     className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none">
                     {["Due on Receipt","Net 7","Net 14","Net 30","Net 45","Net 60"].map((t) => <option key={t} value={t}>{t}</option>)}
                   </select>
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">Due After (days)</label>
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Due After (days)</label>
                   <div className="flex items-center gap-3">
                     <input type="number" min={0} max={365} value={ws.defDueDays} onChange={(e) => ws.setDefDueDays(Number(e.target.value) || 0)}
                       className="w-[100px] rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none" />
@@ -360,7 +542,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
               <Card title="Invoice Number Format">
                 <Field label="Format Pattern" value={ws.defInvFormat} onChange={ws.setDefInvFormat} placeholder="INV-{YYYY}-{0001}" mono />
                 <div className="rounded-lg border border-border-custom bg-black/20 p-3 flex items-center justify-between">
-                  <span className="text-2xs text-muted-custom">Preview</span>
+                  <span className="text-2xs text-muted-custom font-medium">Preview</span>
                   <span className="text-xs font-mono font-bold text-accent">{fmtPreview}</span>
                 </div>
                 <div className="grid grid-cols-2 gap-2 text-[10px] text-muted-custom/70">
@@ -412,7 +594,7 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
               <Card title="Tax Configuration">
                 <Field label="Tax Label" value={ws.defTaxName} onChange={ws.setDefTaxName} placeholder="GST / VAT / Tax" />
                 <div className="space-y-1.5">
-                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block">Default Tax Rate (%)</label>
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Default Tax Rate (%)</label>
                   <div className="flex items-center gap-3">
                     <input type="number" min={0} max={100} step={0.5} value={ws.defTaxRate} onChange={(e) => ws.setDefTaxRate(Number(e.target.value) || 0)}
                       className="w-[100px] rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none" />
@@ -464,24 +646,226 @@ export const SettingsPage: React.FC<SettingsPageProps> = ({ ws }) => {
             </div>
           )}
 
-          {/* ── SECURITY ── */}
-          {activeTab === "Security" && (
+          {/* ── PROFILE ── */}
+          {activeTab === "Profile" && (
             <div className="space-y-6">
-              <SectionHeader title="Security" desc="Manage your password, sessions, and two-factor authentication." />
+              <SectionHeader title="Profile Settings" desc="Manage your personal details, custom preferences, and public profile picture." />
+
+              <Card title="Public Picture">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-2xs font-semibold uppercase tracking-wider text-muted-custom">Profile Picture</p>
+                      <p className="text-[10px] text-muted-custom/60 mt-0.5">JPG · PNG · WebP up to 2MB</p>
+                    </div>
+                    {uploadProgress !== null && (
+                      <span className="text-[10px] text-accent font-semibold">
+                        Uploading {uploadProgress}%
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-4">
+                    <div className="relative h-16 w-16 rounded-full border border-border-custom bg-surface overflow-hidden shrink-0 flex items-center justify-center font-bold text-lg text-accent">
+                      {profile?.avatar_url ? (
+                        <img src={profile.avatar_url} alt="Avatar" className="h-full w-full object-cover" />
+                      ) : (
+                        (profile?.display_name || profile?.full_name || "AG")
+                          .split(" ")
+                          .map((n: string) => n[0])
+                          .join("")
+                          .substring(0, 2)
+                          .toUpperCase()
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => avatarFileRef.current?.click()}
+                          className="rounded-lg border border-border-custom bg-background/50 hover:bg-surface/50 px-3 py-1.5 text-2xs font-semibold text-foreground transition-all cursor-pointer"
+                        >
+                          {profile?.avatar_url ? "Change Photo" : "Upload Photo"}
+                        </button>
+                        {profile?.avatar_url && (
+                          <button
+                            onClick={handleRemoveAvatar}
+                            className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-1.5 text-2xs font-semibold text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                        )}
+                      </div>
+                      {uploadProgress !== null && (
+                        <div className="w-48 bg-border-custom h-1 rounded-full overflow-hidden">
+                          <div className="bg-accent h-full transition-all duration-150" style={{ width: `${uploadProgress}%` }} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    ref={avatarFileRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    className="hidden"
+                    onChange={handleAvatarUpload}
+                  />
+                </div>
+              </Card>
+
+              <Card title="Personal Information">
+                <Field label="Full Name" value={fullName} onChange={setFullName} placeholder="John Doe" />
+                <Field label="Display Name" value={displayName} onChange={setDisplayName} placeholder="johndoe" />
+              </Card>
+
+              <Card title="Preferences">
+                <div className="space-y-1.5">
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Time Zone</label>
+                  <select value={timezone} onChange={(e) => setTimezone(e.target.value)}
+                    className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-all">
+                    <option value="UTC">UTC (Coordinated Universal Time)</option>
+                    <option value="America/New_York">America/New_York (EST/EDT)</option>
+                    <option value="America/Chicago">America/Chicago (CST/CDT)</option>
+                    <option value="America/Los_Angeles">America/Los_Angeles (PST/PDT)</option>
+                    <option value="Europe/London">Europe/London (GMT/BST)</option>
+                    <option value="Europe/Paris">Europe/Paris (CET/CEST)</option>
+                    <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                    <option value="Asia/Tokyo">Asia/Tokyo (JST)</option>
+                    <option value="Asia/Singapore">Asia/Singapore (SGT)</option>
+                    <option value="Australia/Sydney">Australia/Sydney (AEST/AEDT)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Language</label>
+                  <select value={language} onChange={(e) => setLanguage(e.target.value)}
+                    className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-all">
+                    <option value="en">English</option>
+                    <option value="es">Español (Spanish)</option>
+                    <option value="fr">Français (French)</option>
+                    <option value="de">Deutsch (German)</option>
+                    <option value="it">Italiano (Italian)</option>
+                    <option value="ja">日本語 (Japanese)</option>
+                    <option value="zh">中文 (Chinese)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-2xs font-semibold uppercase tracking-wider text-muted-custom block font-medium">Currency Preference</label>
+                  <select value={currencyPref} onChange={(e) => setCurrencyPref(e.target.value)}
+                    className="w-full rounded-lg border border-border-custom bg-background px-3 py-2 text-xs text-foreground focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/50 transition-all">
+                    {CURRENCIES.map((c) => (
+                      <option key={c.code} value={c.code}>{c.symbol} {c.code} — {c.name}</option>
+                    ))}
+                  </select>
+                </div>
+              </Card>
+
+              <button
+                onClick={handleSaveProfile}
+                disabled={profileState.saving}
+                className="w-full py-3 px-4 rounded-xl bg-accent text-xs font-bold text-white shadow-lg shadow-accent/10 hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center cursor-pointer font-bold"
+              >
+                {profileState.saving ? "Saving Changes..." : "Save Profile"}
+              </button>
+            </div>
+          )}
+
+          {/* ── ACCOUNT ── */}
+          {activeTab === "Account" && (
+            <div className="space-y-6">
+              <SectionHeader title="Account Management" desc="Update password/email, manage session devices, and workspace information." />
+
+              <Card title="Account Overview">
+                <div className="grid grid-cols-2 gap-4 text-xs">
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wider text-muted-custom font-medium">Registered Email</p>
+                    <p className="font-semibold text-foreground mt-0.5">{email}</p>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wider text-muted-custom font-medium">Member Since</p>
+                    <p className="font-semibold text-foreground mt-0.5">
+                      {createdAt ? new Date(createdAt).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : "N/A"}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
+              <Card title="Workspace Information">
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wider text-muted-custom font-medium">Workspace Name</p>
+                    <p className="font-semibold text-foreground mt-0.5">{ws.bizName}</p>
+                  </div>
+                  <div>
+                    <p className="text-2xs font-semibold uppercase tracking-wider text-muted-custom font-medium">Workspace ID</p>
+                    <p className="font-mono text-foreground mt-0.5 text-muted-custom bg-background/50 border border-border-custom px-2 py-1 rounded inline-block select-all">
+                      {ws.workspaceId || "Personal Space"}
+                    </p>
+                  </div>
+                </div>
+              </Card>
+
               <Card title="Change Password">
-                <Field label="Current Password"     value="" onChange={() => {}} type="password" placeholder="••••••••" />
-                <Field label="New Password"         value="" onChange={() => {}} type="password" placeholder="••••••••" />
-                <Field label="Confirm New Password" value="" onChange={() => {}} type="password" placeholder="••••••••" />
-                <button className="rounded-lg bg-accent px-4 py-2 text-xs font-bold text-white hover:opacity-90 transition-opacity">Update Password</button>
+                <Field label="New Password" value={newPassword} onChange={setNewPassword} type="password" placeholder="••••••••" />
+                <Field label="Confirm New Password" value={confirmPassword} onChange={setConfirmPassword} type="password" placeholder="••••••••" />
+                <button
+                  onClick={handleChangePassword}
+                  className="rounded-lg bg-accent px-4 py-2 text-2xs font-bold text-white hover:opacity-90 active:scale-95 transition-all cursor-pointer mt-1"
+                >
+                  Update Password
+                </button>
               </Card>
-              <Card>
-                <SettingsToggleRow checked={twoFactor}  onCheckedChange={setTwoFactor}  label="Two-Factor Authentication" description="Require a verification code when signing in" />
-                <SettingsToggleRow checked={loginNotif} onCheckedChange={setLoginNotif} label="Login Notifications"       description="Email me when a new device signs into my account" last />
+
+              <Card title="Change Email Address">
+                <Field label="New Email Address" value={newEmail} onChange={setNewEmail} type="email" placeholder="name@company.com" />
+                <button
+                  onClick={handleUpdateEmail}
+                  className="rounded-lg bg-accent px-4 py-2 text-2xs font-bold text-white hover:opacity-90 active:scale-95 transition-all cursor-pointer mt-1"
+                >
+                  Update Email
+                </button>
               </Card>
-              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5">
-                <h3 className="text-xs font-bold text-red-400 mb-2">Danger Zone</h3>
-                <p className="text-2xs text-muted-custom mb-3">Permanently delete your workspace and all associated data. This cannot be undone.</p>
-                <button className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-colors">Delete Workspace</button>
+
+              <Card title="Sessions & Device Logins">
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-semibold text-foreground">Active Session</p>
+                      <p className="text-[9px] text-muted-custom/70">Sign out of your current device session</p>
+                    </div>
+                    <button
+                      onClick={profileState.signOut}
+                      className="rounded-lg border border-border-custom bg-background/30 hover:bg-surface/50 px-3 py-1.5 text-2xs font-semibold text-foreground transition-all cursor-pointer"
+                    >
+                      Sign Out
+                    </button>
+                  </div>
+                  <div className="h-px bg-border-custom" />
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] font-semibold text-foreground">Sign Out Everywhere</p>
+                      <p className="text-[9px] text-muted-custom/70">Revoke access for all other devices and locations</p>
+                    </div>
+                    <button
+                      onClick={profileState.signOutAllDevices}
+                      className="rounded-lg border border-border-custom bg-background/30 hover:bg-surface/50 px-3 py-1.5 text-2xs font-semibold text-foreground transition-all cursor-pointer"
+                    >
+                      Sign Out All Devices
+                    </button>
+                  </div>
+                </div>
+              </Card>
+
+              <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-5 space-y-4">
+                <div>
+                  <h3 className="text-xs font-bold text-red-400">Danger Zone</h3>
+                  <p className="text-2xs text-muted-custom mt-1 leading-relaxed">Permanently delete your user account and all personal workspace data. This action is irreversible.</p>
+                </div>
+                <button
+                  onClick={() => setIsDeleteModalOpen(true)}
+                  className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2 text-xs font-bold text-red-400 hover:bg-red-500/20 transition-all cursor-pointer"
+                >
+                  Delete Account
+                </button>
               </div>
             </div>
           )}

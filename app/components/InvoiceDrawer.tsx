@@ -69,7 +69,11 @@ export const InvoiceDrawer: React.FC<InvoiceDrawerProps> = ({
     setIsDownloading(true);
     setTimeout(() => {
       setIsDownloading(false);
-      alert(`Downloaded invoice ${invoice.id} successfully.`);
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "Invoice downloaded successfully", type: "success", submessage: `Statement for ${invoice.id} exported.` },
+        })
+      );
     }, 1200);
   };
 

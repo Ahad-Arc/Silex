@@ -19,6 +19,7 @@ interface SidebarProps {
   onSelect: (item: string) => void;
   isMobileOpen: boolean;
   onCloseMobile: () => void;
+  profileState?: any;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -26,9 +27,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelect,
   isMobileOpen,
   onCloseMobile,
+  profileState,
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const { buttonPressProps, shouldReduce } = useMotionPresets();
+
+  const profile = profileState?.profile;
+  const email = profileState?.email || "ahad@silex.com";
+  const fullName = profile?.full_name || "Ahad G.";
+  const initials = (profile?.display_name || fullName || "AG")
+    .split(" ")
+    .map((n: string) => n[0])
+    .join("")
+    .substring(0, 2)
+    .toUpperCase() || "AG";
+  const avatarUrl = profile?.avatar_url;
 
   const menuItems = [
     { name: "Dashboard", icon: <DashboardIcon size={18} />, badge: null },
@@ -145,20 +158,36 @@ export const Sidebar: React.FC<SidebarProps> = ({
       <div className="border-t border-border-custom pt-4">
         {!isCollapsed ? (
           <div className="flex items-center gap-3 px-2">
-            <div className="relative h-8 w-8 rounded-full bg-surface border border-border-custom flex items-center justify-center font-bold text-xs text-accent">
-              AG
-              <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-success-custom ring-2 ring-background" />
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={fullName}
+                className="h-8 w-8 rounded-full border border-border-custom object-cover shrink-0"
+              />
+            ) : (
+              <div className="relative h-8 w-8 rounded-full bg-surface border border-border-custom flex items-center justify-center font-bold text-xs text-accent shrink-0">
+                {initials}
+                <span className="absolute bottom-0 right-0 h-2 w-2 rounded-full bg-success-custom ring-2 ring-background" />
+              </div>
+            )}
             <div className="text-left min-w-0">
-              <p className="text-xs font-bold text-foreground truncate">Ahad G.</p>
-              <p className="text-2xs text-muted-custom truncate">ahad@silex.com</p>
+              <p className="text-xs font-bold text-foreground truncate">{fullName}</p>
+              <p className="text-2xs text-muted-custom truncate">{email}</p>
             </div>
           </div>
         ) : (
           <div className="flex justify-center">
-            <div className="relative h-8 w-8 rounded-full bg-surface border border-border-custom flex items-center justify-center font-bold text-xs text-accent">
-              AG
-            </div>
+            {avatarUrl ? (
+              <img
+                src={avatarUrl}
+                alt={fullName}
+                className="h-8 w-8 rounded-full border border-border-custom object-cover shrink-0"
+              />
+            ) : (
+              <div className="relative h-8 w-8 rounded-full bg-surface border border-border-custom flex items-center justify-center font-bold text-xs text-accent shrink-0">
+                {initials}
+              </div>
+            )}
           </div>
         )}
       </div>

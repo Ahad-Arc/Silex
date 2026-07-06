@@ -116,18 +116,29 @@ export const ToastContainer: React.FC<ToastProps> = ({ toasts, onDismiss }) => {
 export function useToast() {
   const [toasts, setToasts] = React.useState<ToastData[]>([]);
 
-  const addToast = (
+  const addToast = React.useCallback((
     message: string,
     type: ToastData["type"] = "success",
     submessage?: string
   ) => {
     const id = `toast-${Date.now()}-${Math.random().toString(36).slice(2)}`;
     setToasts((prev) => [...prev, { id, message, submessage, type }]);
-  };
+  }, []);
 
-  const dismissToast = (id: string) => {
+  const dismissToast = React.useCallback((id: string) => {
     setToasts((prev) => prev.filter((t) => t.id !== id));
-  };
+  }, []);
+
+  React.useEffect(() => {
+    const handleGlobalToast = (e: Event) => {
+      const customEvent = e as CustomEvent<{ message: string; type: ToastData["type"]; submessage?: string }>;
+      if (customEvent.detail) {
+        addToast(customEvent.detail.message, customEvent.detail.type || "success", customEvent.detail.submessage);
+      }
+    };
+    window.addEventListener("silex-toast", handleGlobalToast);
+    return () => window.removeEventListener("silex-toast", handleGlobalToast);
+  }, [addToast]);
 
   return { toasts, addToast, dismissToast };
 }

@@ -34,6 +34,10 @@ export async function POST(req: NextRequest) {
     });
   } catch (error: any) {
     console.error("PDF Generation Error:", error);
+    try {
+      const fs = require("fs");
+      fs.writeFileSync("pdf-error.log", `${new Date().toISOString()}\nError: ${error.message}\nStack: ${error.stack}\n`);
+    } catch (e) {}
     return NextResponse.json({ error: error.message || "Failed to generate PDF" }, { status: 500 });
   }
 }

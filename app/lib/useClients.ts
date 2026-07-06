@@ -1,18 +1,11 @@
 "use client";
 
-/**
- * useClients — workspace-level client database, backed by localStorage.
- *
- * Clients are first-class entities. Every invoice can reference a clientId.
- * When creating an invoice, the builder auto-fills address/tax/currency/terms
- * from the linked client profile.
- */
-
 import { useState, useEffect, useCallback } from "react";
+import { createClient } from "./supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 export interface Client {
-  id: string;                 // nanoid-style: "cli_xxxx"
+  id: string;                 // UUID from database
   // Identity
   displayName: string;        // The name shown everywhere (person or company)
   companyName: string;
@@ -44,75 +37,187 @@ export type ClientHealth = "High Value" | "Active" | "Slow Payer" | "Overdue" | 
 
 export type ClientInput = Omit<Client, "id" | "createdAt" | "updatedAt">;
 
-// ─── localStorage ─────────────────────────────────────────────────────────────
-const STORAGE_KEY = "sx_clients";
-
-function readClients(): Client[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Client[]) : [];
-  } catch { return []; }
+// Helper to translate DB client row to frontend Client object interface
+export function dbToClient(row: any): Client {
+  return {
+    id: row.id,
+    displayName: row.display_name,
+    companyName: row.company_name || "",
+    contactPerson: row.contact_person || "",
+    email: row.email || "",
+    phone: row.phone || "",
+    website: row.website || "",
+    billingAddress: row.billing_address || "",
+    billingCity: "",
+    billingState: "",
+    billingCountry: "",
+    billingPostal: "",
+    shippingAddress: "",
+    gstin: row.tax_id || "",
+    currency: row.currency || "USD",
+    paymentTerms: row.payment_terms || "Net 30",
+    notes: "",
+    createdAt: row.created_at,
+    updatedAt: row.updated_at,
+  };
 }
 
-function writeClients(clients: Client[]): void {
-  if (typeof window === "undefined") return;
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(clients)); } catch { /* quota */ }
-}
-
-function makeId(): string {
-  return "cli_" + Math.random().toString(36).slice(2, 10);
-}
-
-// ─── Hook ─────────────────────────────────────────────────────────────────────
 export interface ClientActions {
-  addClient: (input: ClientInput) => Client;
+  addClient: (input: ClientInput) => void;
   updateClient: (id: string, patch: Partial<ClientInput>) => void;
   deleteClient: (id: string) => void;
   getClient: (id: string) => Client | undefined;
 }
 
-export function useClients(): { clients: Client[] } & ClientActions {
+export function useClients(workspaceId: string | null): { clients: Client[]; loading: boolean } & ClientActions {
   const [clients, setClients] = useState<Client[]>([]);
+  const [loading, setLoading] = useState(true);
 
+  // Load clients from Supabase database and subscribe to realtime changes
   useEffect(() => {
-    setClients(readClients());
-  }, []);
+    if (!workspaceId) {
+      setClients([]);
+      setLoading(false);
+      return;
+    }
 
-  const addClient = useCallback((input: ClientInput): Client => {
-    const now = new Date().toISOString();
-    const client: Client = { ...input, id: makeId(), createdAt: now, updatedAt: now };
-    setClients((prev) => {
-      const next = [client, ...prev];
-      writeClients(next);
-      return next;
-    });
-    return client;
-  }, []);
+    const supabase = createClient() as any;
 
-  const updateClient = useCallback((id: string, patch: Partial<ClientInput>) => {
-    setClients((prev) => {
-      const next = prev.map((c) =>
-        c.id === id ? { ...c, ...patch, updatedAt: new Date().toISOString() } : c
-      );
-      writeClients(next);
-      return next;
-    });
-  }, []);
+    async function loadClients() {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from("clients")
+        .select("*")
+        .eq("workspace_id", workspaceId)
+        .order("created_at", { ascending: false });
 
-  const deleteClient = useCallback((id: string) => {
-    setClients((prev) => {
-      const next = prev.filter((c) => c.id !== id);
-      writeClients(next);
-      return next;
-    });
-  }, []);
+      if (error) {
+        console.error("Error loading clients:", error.message);
+      } else if (data) {
+        setClients(data.map(dbToClient));
+      }
+      setLoading(false);
+    }
+
+    loadClients();
+
+    const channel = supabase.channel(`realtime-clients-${workspaceId}`)
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "clients",
+          filter: `workspace_id=eq.${workspaceId}`,
+        },
+        (payload: any) => {
+          if (payload.eventType === "INSERT") {
+            const newClient = dbToClient(payload.new);
+            setClients((prev) => {
+              if (prev.some((c) => c.id === newClient.id)) return prev;
+              return [newClient, ...prev];
+            });
+          } else if (payload.eventType === "UPDATE") {
+            const updatedClient = dbToClient(payload.new);
+            setClients((prev) =>
+              prev.map((c) => (c.id === updatedClient.id ? updatedClient : c))
+            );
+          } else if (payload.eventType === "DELETE") {
+            setClients((prev) => prev.filter((c) => c.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [workspaceId]);
+
+  const addClient = useCallback(async (input: ClientInput) => {
+    if (!workspaceId) return;
+    const supabase = createClient() as any;
+    const { data, error } = await supabase
+      .from("clients")
+      .insert({
+        workspace_id: workspaceId,
+        display_name: input.displayName,
+        company_name: input.companyName || null,
+        contact_person: input.contactPerson || null,
+        email: input.email || null,
+        phone: input.phone || null,
+        website: input.website || null,
+        billing_address: input.billingAddress || null,
+        tax_id: input.gstin || null,
+        currency: input.currency || "USD",
+        payment_terms: input.paymentTerms || "Net 30",
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error adding client:", error.message);
+      return;
+    }
+
+    if (data) {
+      const client = dbToClient(data);
+      setClients((prev) => [client, ...prev]);
+    }
+  }, [workspaceId]);
+
+  const updateClient = useCallback(async (id: string, patch: Partial<ClientInput>) => {
+    if (!workspaceId) return;
+    const supabase = createClient() as any;
+
+    // Optimistic state update
+    setClients((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, ...patch } : c))
+    );
+
+    const { error } = await supabase
+      .from("clients")
+      .update({
+        display_name: patch.displayName,
+        company_name: patch.companyName,
+        contact_person: patch.contactPerson,
+        email: patch.email,
+        phone: patch.phone,
+        website: patch.website,
+        billing_address: patch.billingAddress,
+        tax_id: patch.gstin,
+        currency: patch.currency,
+        payment_terms: patch.paymentTerms,
+      })
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error updating client in database:", error.message);
+    }
+  }, [workspaceId]);
+
+  const deleteClient = useCallback(async (id: string) => {
+    if (!workspaceId) return;
+    const supabase = createClient() as any;
+
+    // Optimistic state deletion
+    setClients((prev) => prev.filter((c) => c.id !== id));
+
+    const { error } = await supabase
+      .from("clients")
+      .delete()
+      .eq("id", id);
+
+    if (error) {
+      console.error("Error deleting client from database:", error.message);
+    }
+  }, [workspaceId]);
 
   const getClient = useCallback((id: string) => {
     return clients.find((c) => c.id === id);
   }, [clients]);
 
-  return { clients, addClient, updateClient, deleteClient, getClient };
+  return { clients, loading, addClient, updateClient, deleteClient, getClient };
 }
 
 // ─── Health badge logic ────────────────────────────────────────────────────────

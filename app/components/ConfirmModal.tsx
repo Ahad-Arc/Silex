@@ -26,6 +26,22 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
 }) => {
   const { modalVariants, fadeInVariants } = useMotionPresets();
 
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm();
+        onClose();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onConfirm, onClose]);
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -67,7 +83,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
             <div className="flex justify-end gap-3 pt-2">
               <button
                 onClick={onClose}
-                className="rounded-lg border border-border-custom px-4 py-2 text-2xs font-semibold text-muted-custom hover:text-foreground hover:bg-surface transition-all"
+                className="rounded-lg border border-border-custom px-4 py-2 text-2xs font-semibold text-muted-custom hover:text-foreground hover:bg-surface transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/50"
               >
                 {cancelLabel}
               </button>
@@ -76,7 +92,7 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
                   onConfirm();
                   onClose();
                 }}
-                className="rounded-lg bg-red-500 px-4 py-2 text-2xs font-bold text-white hover:opacity-90 active:scale-95 transition-all"
+                className="rounded-lg bg-red-500 px-4 py-2 text-2xs font-bold text-white hover:opacity-90 active:scale-95 transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-red-500/50"
               >
                 {confirmLabel}
               </button>

@@ -29,7 +29,14 @@ const UploadZone: React.FC<UploadZoneProps> = ({ height = 72, onFile }) => {
   const [dragOver, setDragOver] = useState(false);
 
   const handleFile = (file: File) => {
-    if (file.size > MAX_BYTES) { alert("File too large — max 4 MB."); return; }
+    if (file.size > MAX_BYTES) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "File too large", type: "error", submessage: "Maximum allowed file size is 4 MB." },
+        })
+      );
+      return;
+    }
     onFile(file);
   };
 
@@ -189,7 +196,14 @@ export const StampSlot: React.FC<StampSlotProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleFile = (file: File) => {
-    if (file.size > MAX_BYTES) { alert("File too large — max 4 MB."); return; }
+    if (file.size > MAX_BYTES) {
+      window.dispatchEvent(
+        new CustomEvent("silex-toast", {
+          detail: { message: "File too large", type: "error", submessage: "Maximum allowed file size is 4 MB." },
+        })
+      );
+      return;
+    }
     const reader = new FileReader();
     reader.onload = (e) => {
       const result = e.target?.result;
